@@ -20,8 +20,9 @@ padding:30px;
 background:linear-gradient(90deg,#000428,#004e92);
 }
 
-h1{
-font-size:40px;
+.controls{
+text-align:center;
+margin:20px;
 }
 
 .timeline{
@@ -32,27 +33,40 @@ padding:30px;
 }
 
 .card{
-
 background:#141414;
 padding:20px;
 border-radius:10px;
 box-shadow:0 0 15px rgba(0,195,255,0.3);
-transition:0.4s;
-
-}
-
-.card:hover{
-transform:scale(1.05);
 }
 
 .card img{
 width:100%;
 border-radius:6px;
+margin-top:10px;
 }
 
 .date{
 color:#00c3ff;
 font-weight:bold;
+}
+
+select,input{
+padding:8px;
+margin:10px;
+border-radius:6px;
+border:none;
+}
+
+button{
+display:block;
+margin:20px auto;
+padding:10px 20px;
+border:none;
+background:#00c3ff;
+color:black;
+font-weight:bold;
+border-radius:6px;
+cursor:pointer;
 }
 
 </style>
@@ -63,43 +77,132 @@ font-weight:bold;
 
 <header>
 
-<h1>🚀 Rocket Launch Explorer</h1>
-<p>All launches from the beginning of spaceflight to today</p>
-<p id = "loading" style = "text-align:center">Loading launches...</p>
+<h1>🚀 Global Rocket Launch Explorer</h1>
+<p>Explore launches from every space agency</p>
+
 </header>
+
+<div class="controls">
+
+<select id="agencyFilter" onchange="applyFilters()">
+<option value="ALL">All Agencies</option>
+</select>
+
+<br>
+
+<label>Year:</label>
+<input type="range" id="yearSlider" min="1957" max="2030" value="2030" oninput="applyFilters()">
+
+<span id="yearLabel">Up to 2030</span>
+
+<h3 id="launchCount"></h3>
+
+</div>
 
 <div class="timeline" id="timeline"></div>
 
+<button onclick="loadLaunches()">Load More Launches</button>
+
 <script>
 
-document.getElementById("loading").style.display="none"
+const timeline=document.getElementById("timeline")
+const agencyFilter=document.getElementById("agencyFilter")
+const launchCount=document.getElementById("launchCount")
+const yearSlider=document.getElementById("yearSlider")
+const yearLabel=document.getElementById("yearLabel")
 
-const timeline = document.getElementByTd("timeline")
+let launches=[]
+let offset=0
+const limit=40
 
 async function loadLaunches(){
-    const url = 'https://ll.thespacedevs.com/2.2.0/launch/?limit=20'
-    try{
-    const response = await fetch(url)
-    const data = await response.json()
-    data.results.forEach(launch => {
-        const image = l.image ? l.image :""
 
-        timeline.innerHTML += `
-        <div class="card">
-            <div class ="date">${l.net}</div>
-            <h3>${l.name}</h3>
-            <p><b>Rocket:</b> ${l.rocket.configuration.name}</p>
-            <p><b>Launch Site:</b> ${l.pad.name}</p>
-            ${image ? '<img src="${l.image}">':""}
-        </div>
-        `
-    })
-    
-    }
-    catch(error){
-        timeline.innerHTML = "<p style='text-align:center'>FAILED to load Launch Data</p>"
+const url=`https://ll.thespacedevs.com/2.2.0/launch/?limit=${limit}&offset=${offset}`
 
-    }
+const response=await fetch(url)
+const data=await response.json()
+
+launches=launches.concat(data.results)
+
+populateAgencies()
+
+applyFilters()
+
+offset+=limit
+
+}
+
+function populateAgencies(){
+
+let agencies=new Set()
+
+launches.forEach(l=>{
+agencies.add(l.launch_service_provider.name)
+})
+
+agencyFilter.innerHTML='<option value="ALL">All Agencies</option>'
+
+agencies.forEach(a=>{
+agencyFilter.innerHTML+=`<option value="${a}">${a}</option>`
+})
+
+}
+
+function applyFilters(){
+
+const selectedAgency=agencyFilter.value
+const selectedYear=parseInt(yearSlider.value)
+
+yearLabel.innerText="Up to "+selectedYear
+
+let filtered=launches.filter(l=>{
+
+const year=new Date(l.net).getFullYear()
+
+const agencyMatch=(selectedAgency==="ALL" || l.launch_service_provider.name===selectedAgency)
+
+const yearMatch=(year<=selectedYear)
+
+return agencyMatch && yearMatch
+
+})
+
+displayLaunches(filtered)
+
+}
+
+function displayLaunches(list){
+
+timeline.innerHTML=""
+
+launchCount.innerText="Total Launches: "+list.length
+
+list.forEach(l=>{
+
+const image=l.image?l.image:""
+
+timeline.innerHTML+=`
+
+<div class="card">
+
+<div class="date">${new Date(l.net).toDateString()}</div>
+
+<h3>${l.name}</h3>
+
+<p><b>Rocket:</b> ${l.rocket.configuration.name}</p>
+
+<p><b>Agency:</b> ${l.launch_service_provider.name}</p>
+
+<p><b>Launch Site:</b> ${l.pad.name}</p>
+
+${image?`<img src="${image}">`:""}
+
+</div>
+
+`
+
+})
+
 }
 
 loadLaunches()
@@ -109,3 +212,5 @@ loadLaunches()
 </body>
 
 </html>
+
+
