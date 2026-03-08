@@ -91,7 +91,7 @@ const agencyFilter = document.getElementById("agencyFilter")
 const launchCount = document.getElementById("launchCount")
 
 let launches=[]
-let nextURL="https://ll.thespacedevs.com/2.2.0/launch/?limit=60"
+let nextURL="https://ll.thespacedevs.com/2.2.0/launch/?limit=10"
 let loading=false
 
 async function loadLaunches(){
@@ -202,7 +202,7 @@ window.addEventListener("scroll",()=>{
 
 if(window.innerHeight+window.scrollY>=document.body.offsetHeight-700){
 
-setTimeout(loadLaunches,100)
+setTimeout(loadLaunches,1500)
 
 }
 
@@ -215,6 +215,7 @@ loadLaunches()
 </body>
 
 </html>
+
 
 
 
