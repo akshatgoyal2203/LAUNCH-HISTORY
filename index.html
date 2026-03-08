@@ -5,6 +5,8 @@
 
 <title>Rocket Launch Explorer</title>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
 
 body{
@@ -50,9 +52,9 @@ color:#00c3ff;
 font-weight:bold;
 }
 
-select,input{
+input,select{
 padding:8px;
-margin:10px;
+margin:8px;
 border-radius:6px;
 border:none;
 }
@@ -69,6 +71,11 @@ border-radius:6px;
 cursor:pointer;
 }
 
+#map{
+height:400px;
+margin:20px;
+}
+
 </style>
 
 </head>
@@ -78,11 +85,13 @@ cursor:pointer;
 <header>
 
 <h1>🚀 Global Rocket Launch Explorer</h1>
-<p>Explore launches from every space agency</p>
+<p>Explore the history of space launches</p>
 
 </header>
 
 <div class="controls">
+
+<input type="text" id="searchBox" placeholder="Search rocket..." onkeyup="applyFilters()">
 
 <select id="agencyFilter" onchange="applyFilters()">
 <option value="ALL">All Agencies</option>
@@ -97,11 +106,17 @@ cursor:pointer;
 
 <h3 id="launchCount"></h3>
 
+<h2 id="nextLaunch"></h2>
+
 </div>
+
+<div id="map"></div>
 
 <div class="timeline" id="timeline"></div>
 
 <button onclick="loadLaunches()">Load More Launches</button>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
@@ -110,10 +125,16 @@ const agencyFilter=document.getElementById("agencyFilter")
 const launchCount=document.getElementById("launchCount")
 const yearSlider=document.getElementById("yearSlider")
 const yearLabel=document.getElementById("yearLabel")
+const searchBox=document.getElementById("searchBox")
+const nextLaunch=document.getElementById("nextLaunch")
 
 let launches=[]
 let offset=0
 const limit=40
+
+const map=L.map('map').setView([20,0],2)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
 
 async function loadLaunches(){
 
@@ -127,6 +148,8 @@ launches=launches.concat(data.results)
 populateAgencies()
 
 applyFilters()
+
+showNextLaunch()
 
 offset+=limit
 
@@ -152,6 +175,7 @@ function applyFilters(){
 
 const selectedAgency=agencyFilter.value
 const selectedYear=parseInt(yearSlider.value)
+const search=searchBox.value.toLowerCase()
 
 yearLabel.innerText="Up to "+selectedYear
 
@@ -163,7 +187,9 @@ const agencyMatch=(selectedAgency==="ALL" || l.launch_service_provider.name===se
 
 const yearMatch=(year<=selectedYear)
 
-return agencyMatch && yearMatch
+const searchMatch=l.rocket.configuration.name.toLowerCase().includes(search)
+
+return agencyMatch && yearMatch && searchMatch
 
 })
 
@@ -176,6 +202,10 @@ function displayLaunches(list){
 timeline.innerHTML=""
 
 launchCount.innerText="Total Launches: "+list.length
+
+map.eachLayer(layer=>{
+if(layer instanceof L.Marker) map.removeLayer(layer)
+})
 
 list.forEach(l=>{
 
@@ -201,7 +231,31 @@ ${image?`<img src="${image}">`:""}
 
 `
 
+if(l.pad.latitude && l.pad.longitude){
+
+L.marker([l.pad.latitude,l.pad.longitude])
+.addTo(map)
+.bindPopup(l.name)
+
+}
+
 })
+
+}
+
+function showNextLaunch(){
+
+const upcoming=launches.find(l=> new Date(l.net) > new Date())
+
+if(upcoming){
+
+const time=new Date(upcoming.net)-new Date()
+
+const days=Math.floor(time/(1000*60*60*24))
+
+nextLaunch.innerText="Next Launch: "+upcoming.name+" in "+days+" days"
+
+}
 
 }
 
@@ -212,5 +266,16 @@ loadLaunches()
 </body>
 
 </html>
+
+
+
+
+
+
+
+
+
+
+
 
 
