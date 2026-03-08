@@ -83,49 +83,54 @@ border:none;
 
 <script>
 
-const timeline=document.getElementById("timeline")
-const agencyFilter=document.getElementById("agencyFilter")
-const launchCount=document.getElementById("launchCount")
+const timeline = document.getElementById("timeline")
+const agencyFilter = document.getElementById("agencyFilter")
+const launchCount = document.getElementById("launchCount")
 
-let launches=[]
-let offset=0
-const limit=40
-let loading=false
+let launches = []
+let nextURL = "https://ll.thespacedevs.com/2.2.0/launch/?limit=40"
+let loading = false
 
 async function loadLaunches(){
 
-if(loading) return
-loading=true
+if(loading || !nextURL) return
+loading = true
 
-const url=`https://ll.thespacedevs.com/2.2.0/launch/?limit=${limit}&offset=${offset}`
+try{
 
-const response=await fetch(url)
-const data=await response.json()
+const response = await fetch(nextURL)
+const data = await response.json()
 
-launches=launches.concat(data.results)
+launches = launches.concat(data.results)
 
-offset+=limit
+nextURL = data.next
 
 populateAgencies()
-
 applyFilter()
 
-loading=false
+}catch(err){
+
+timeline.innerHTML = "<p style='text-align:center'>Failed to load launches</p>"
+console.log(err)
+
+}
+
+loading = false
 
 }
 
 function populateAgencies(){
 
-let agencies=new Set()
+let agencies = new Set()
 
 launches.forEach(l=>{
 agencies.add(l.launch_service_provider.name)
 })
 
-agencyFilter.innerHTML='<option value="ALL">All Agencies</option>'
+agencyFilter.innerHTML = '<option value="ALL">All Agencies</option>'
 
 agencies.forEach(a=>{
-agencyFilter.innerHTML+=`<option value="${a}">${a}</option>`
+agencyFilter.innerHTML += `<option value="${a}">${a}</option>`
 })
 
 }
@@ -134,25 +139,23 @@ agencyFilter.addEventListener("change",applyFilter)
 
 function applyFilter(){
 
-const selected=agencyFilter.value
+const selected = agencyFilter.value
 
 timeline.innerHTML=""
 
-let filtered=launches
+let filtered = launches
 
-if(selected!=="ALL"){
-
-filtered=launches.filter(l=>l.launch_service_provider.name===selected)
-
+if(selected !== "ALL"){
+filtered = launches.filter(l => l.launch_service_provider.name === selected)
 }
 
-launchCount.innerText="Total Launches: "+filtered.length
+launchCount.innerText = "Total Launches: " + filtered.length
 
 filtered.forEach(l=>{
 
-const image=l.image?l.image:""
+const image = l.image ? l.image : ""
 
-timeline.innerHTML+=`
+timeline.innerHTML += `
 
 <div class="card">
 
@@ -166,7 +169,7 @@ timeline.innerHTML+=`
 
 <p><b>Launch Site:</b> ${l.pad.name}</p>
 
-${image?`<img src="${image}">`:""}
+${image ? `<img src="${image}">` : ""}
 
 </div>
 
@@ -178,7 +181,7 @@ ${image?`<img src="${image}">`:""}
 
 window.addEventListener("scroll",()=>{
 
-if(window.innerHeight+window.scrollY>=document.body.offsetHeight-500){
+if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 600){
 
 loadLaunches()
 
@@ -193,5 +196,6 @@ loadLaunches()
 </body>
 
 </html>
+
 
 
