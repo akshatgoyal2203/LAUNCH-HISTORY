@@ -20,6 +20,11 @@ padding:30px;
 background:linear-gradient(90deg,#000428,#004e92);
 }
 
+.controls{
+text-align:center;
+margin:20px;
+}
+
 .timeline{
 display:grid;
 grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
@@ -45,20 +50,10 @@ color:#00c3ff;
 font-weight:bold;
 }
 
-.pagination{
-text-align:center;
-margin-bottom:40px;
-}
-
-button{
-padding:10px 20px;
-margin:10px;
-border:none;
-background:#00c3ff;
-color:black;
-font-weight:bold;
+select{
+padding:8px;
 border-radius:6px;
-cursor:pointer;
+border:none;
 }
 
 </style>
@@ -69,49 +64,91 @@ cursor:pointer;
 
 <header>
 
-<h1>🚀 Rocket Launch Explorer</h1>
-<p>Browse rocket launches from around the world</p>
+<h1>🚀 Global Rocket Launch Explorer</h1>
+<p>Scroll to explore the full history of rocket launches</p>
 
 </header>
 
-<div class="timeline" id="timeline">
+<div class="controls">
 
-<p style="text-align:center">Loading launches...</p>
+<select id="agencyFilter">
+<option value="ALL">All Agencies</option>
+</select>
 
-</div>
-
-<div class="pagination">
-
-<button onclick="previousPage()">Previous</button>
-
-<span id="pageNumber"></span>
-
-<button onclick="nextPage()">Next</button>
+<h3 id="launchCount"></h3>
 
 </div>
+
+<div class="timeline" id="timeline"></div>
 
 <script>
 
 const timeline=document.getElementById("timeline")
-const pageNumber=document.getElementById("pageNumber")
+const agencyFilter=document.getElementById("agencyFilter")
+const launchCount=document.getElementById("launchCount")
 
-let page=1
+let launches=[]
+let offset=0
 const limit=40
+let loading=false
 
-async function loadPage(){
+async function loadLaunches(){
 
-timeline.innerHTML="<p>Loading launches...</p>"
-
-const offset=(page-1)*limit
+if(loading) return
+loading=true
 
 const url=`https://ll.thespacedevs.com/2.2.0/launch/?limit=${limit}&offset=${offset}`
 
 const response=await fetch(url)
 const data=await response.json()
 
+launches=launches.concat(data.results)
+
+offset+=limit
+
+populateAgencies()
+
+applyFilter()
+
+loading=false
+
+}
+
+function populateAgencies(){
+
+let agencies=new Set()
+
+launches.forEach(l=>{
+agencies.add(l.launch_service_provider.name)
+})
+
+agencyFilter.innerHTML='<option value="ALL">All Agencies</option>'
+
+agencies.forEach(a=>{
+agencyFilter.innerHTML+=`<option value="${a}">${a}</option>`
+})
+
+}
+
+agencyFilter.addEventListener("change",applyFilter)
+
+function applyFilter(){
+
+const selected=agencyFilter.value
+
 timeline.innerHTML=""
 
-data.results.forEach(l=>{
+let filtered=launches
+
+if(selected!=="ALL"){
+
+filtered=launches.filter(l=>l.launch_service_provider.name===selected)
+
+}
+
+launchCount.innerText="Total Launches: "+filtered.length
+
+filtered.forEach(l=>{
 
 const image=l.image?l.image:""
 
@@ -137,34 +174,25 @@ ${image?`<img src="${image}">`:""}
 
 })
 
-pageNumber.innerText="Page "+page
+}
+
+window.addEventListener("scroll",()=>{
+
+if(window.innerHeight+window.scrollY>=document.body.offsetHeight-500){
+
+loadLaunches()
 
 }
 
-function nextPage(){
+})
 
-page++
-loadPage()
-
-}
-
-function previousPage(){
-
-if(page>1){
-page--
-loadPage()
-}
-
-}
-
-loadPage()
+loadLaunches()
 
 </script>
 
 </body>
 
 </html>
-
 
 
 
