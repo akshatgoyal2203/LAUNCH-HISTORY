@@ -5,6 +5,8 @@
 
 <title>Rocket Launch Explorer</title>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
 
 body{
@@ -50,10 +52,28 @@ color:#00c3ff;
 font-weight:bold;
 }
 
-select{
+input,select{
 padding:8px;
+margin:8px;
 border-radius:6px;
 border:none;
+}
+
+button{
+display:block;
+margin:20px auto;
+padding:10px 20px;
+border:none;
+background:#00c3ff;
+color:black;
+font-weight:bold;
+border-radius:6px;
+cursor:pointer;
+}
+
+#map{
+height:400px;
+margin:20px;
 }
 
 </style>
@@ -65,37 +85,58 @@ border:none;
 <header>
 
 <h1>🚀 Global Rocket Launch Explorer</h1>
-<p>Scroll to explore the full history of rocket launches</p>
+<p>Explore the history of space launches</p>
 
 </header>
 
 <div class="controls">
 
-<select id="agencyFilter">
+<input type="text" id="searchBox" placeholder="Search rocket..." onkeyup="applyFilters()">
+
+<select id="agencyFilter" onchange="applyFilters()">
 <option value="ALL">All Agencies</option>
 </select>
 
+<br>
+
+<label>Year:</label>
+<input type="range" id="yearSlider" min="1957" max="2030" value="2030" oninput="applyFilters()">
+
+<span id="yearLabel">Up to 2030</span>
+
 <h3 id="launchCount"></h3>
+
+<h2 id="nextLaunch"></h2>
 
 </div>
 
+<div id="map"></div>
+
 <div class="timeline" id="timeline"></div>
+
+<button onclick="loadLaunches()">Load More Launches</button>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
 const timeline=document.getElementById("timeline")
 const agencyFilter=document.getElementById("agencyFilter")
 const launchCount=document.getElementById("launchCount")
+const yearSlider=document.getElementById("yearSlider")
+const yearLabel=document.getElementById("yearLabel")
+const searchBox=document.getElementById("searchBox")
+const nextLaunch=document.getElementById("nextLaunch")
 
 let launches=[]
 let offset=0
 const limit=40
-let loading=false
+
+const map=L.map('map').setView([20,0],2)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
 
 async function loadLaunches(){
-
-if(loading) return
-loading=true
 
 const url=`https://ll.thespacedevs.com/2.2.0/launch/?limit=${limit}&offset=${offset}`
 
@@ -104,13 +145,13 @@ const data=await response.json()
 
 launches=launches.concat(data.results)
 
-offset+=limit
-
 populateAgencies()
 
-applyFilter()
+applyFilters()
 
-loading=false
+showNextLaunch()
+
+offset+=limit
 
 }
 
@@ -130,25 +171,43 @@ agencyFilter.innerHTML+=`<option value="${a}">${a}</option>`
 
 }
 
-agencyFilter.addEventListener("change",applyFilter)
+function applyFilters(){
 
-function applyFilter(){
+const selectedAgency=agencyFilter.value
+const selectedYear=parseInt(yearSlider.value)
+const search=searchBox.value.toLowerCase()
 
-const selected=agencyFilter.value
+yearLabel.innerText="Up to "+selectedYear
 
-timeline.innerHTML=""
+let filtered=launches.filter(l=>{
 
-let filtered=launches
+const year=new Date(l.net).getFullYear()
 
-if(selected!=="ALL"){
+const agencyMatch=(selectedAgency==="ALL" || l.launch_service_provider.name===selectedAgency)
 
-filtered=launches.filter(l=>l.launch_service_provider.name===selected)
+const yearMatch=(year<=selectedYear)
+
+const searchMatch=l.rocket.configuration.name.toLowerCase().includes(search)
+
+return agencyMatch && yearMatch && searchMatch
+
+})
+
+displayLaunches(filtered)
 
 }
 
-launchCount.innerText="Total Launches: "+filtered.length
+function displayLaunches(list){
 
-filtered.forEach(l=>{
+timeline.innerHTML=""
+
+launchCount.innerText="Total Launches: "+list.length
+
+map.eachLayer(layer=>{
+if(layer instanceof L.Marker) map.removeLayer(layer)
+})
+
+list.forEach(l=>{
 
 const image=l.image?l.image:""
 
@@ -172,19 +231,33 @@ ${image?`<img src="${image}">`:""}
 
 `
 
-})
+if(l.pad.latitude && l.pad.longitude){
 
-}
-
-window.addEventListener("scroll",()=>{
-
-if(window.innerHeight+window.scrollY>=document.body.offsetHeight-500){
-
-loadLaunches()
+L.marker([l.pad.latitude,l.pad.longitude])
+.addTo(map)
+.bindPopup(l.name)
 
 }
 
 })
+
+}
+
+function showNextLaunch(){
+
+const upcoming=launches.find(l=> new Date(l.net) > new Date())
+
+if(upcoming){
+
+const time=new Date(upcoming.net)-new Date()
+
+const days=Math.floor(time/(1000*60*60*24))
+
+nextLaunch.innerText="Next Launch: "+upcoming.name+" in "+days+" days"
+
+}
+
+}
 
 loadLaunches()
 
@@ -193,7 +266,6 @@ loadLaunches()
 </body>
 
 </html>
-
 
 
 
